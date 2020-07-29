@@ -1,0 +1,7 @@
+[ElasticSearch]
+
+user=jane
+password=doe
+host=localhost
+port=443
+path=data
