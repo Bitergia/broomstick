@@ -131,3 +131,5 @@ dmypy.json
 # ES settings
 .settings*
 
+# VS Code
+.vscode
