@@ -162,6 +162,21 @@ class TestESCommon(TestCase):
             author_org_name=esc.UNKNOWN_ORG_NAME)
         self.assertEqual(result, 'test')
 
+    def test_ignore_bots(self):
+        """Test add bot exclusion filter.
+        """
+
+        s = Search()
+        s.exclude = MagicMock(return_value='test')
+
+        result = esc.ignore_bots(s)
+
+        s.exclude.assert_called_with(
+            'bool',
+            author_bot=True)
+        self.assertEqual(result, 'test')
+
+
     def test_filter_org(self):
         """Tests add organization name inclusion filter.
         """
@@ -579,6 +594,183 @@ class TestESCommon(TestCase):
             field='author_org_name',
             order={'total_contribs': 'desc'},
             size=1000)
+        s.aggs.bucket().metric.assert_called_with(
+            'total_contribs',
+            'cardinality',
+            field='hash',
+            precision_threshold=40000)
+
+        assert_frame_equal(result, expected_df)
+
+    @mock.patch('broomstick.data.es.common.create_search')
+    @mock.patch('broomstick.data.es.common.ignore_bots')
+    def test_contributions_count_by_contributor(self,
+                                        ignore_bots_mock,
+                                        create_search_mock):
+        """Test count total contributions by contributor method.
+        """
+        response = {
+            'aggregations': {
+                'contributors': {
+                    'doc_count_error_upper_bound': 0,
+                    'sum_other_doc_count': 0,
+                    'buckets': [
+                        {
+                            'key': 'Anne',
+                            'doc_count': 213,
+                            'total_contribs': {
+                                'value': 179
+                            }
+                        },
+                        {
+                            'key': 'Bob',
+                            'doc_count': 130,
+                            'total_contribs': {
+                                'value': 125
+                            }
+                        },
+                        {
+                            'key': 'Carl',
+                            'doc_count': 33,
+                            'total_contribs': {
+                                'value': 30
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        expected_data = {
+            'contributor': ['Anne', 'Bob', 'Carl'],
+            'contributions': [179, 125, 30]
+        }
+
+        expected_df = pandas.DataFrame(
+            expected_data,
+            columns=['contributor', 'contributions'])
+
+        # Create a mocked Search
+        s, r = self.__create_mocked_search(response, create_search_mock)
+
+        # Mock `ignore_bots` to return our mocked `Search` object
+        ignore_bots_mock.return_value = s
+
+        # Test with start and end dates
+        #
+
+        start_date = '2018-01-01'
+        end_date = '2020-01-01'
+
+        result = esc.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date)
+
+        create_search_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date)
+        ignore_bots_mock.assert_called_with(
+            s=s)
+
+        s.aggs.bucket.assert_called_with(
+            'contributors',
+            'terms',
+            field='author_name',
+            order={'total_contribs': 'desc'},
+            size=10000)
+        s.aggs.bucket().metric.assert_called_with(
+            'total_contribs',
+            'cardinality',
+            field='hash',
+            precision_threshold=40000)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test with start date only
+        #
+
+        result = esc.contributions_count_by_contributor(
+            DataSource.ALL,
+            start_date=start_date)
+
+        create_search_mock.assert_called_with(
+            data_source=DataSource.ALL,
+            start_date=start_date,
+            end_date=None)
+        ignore_bots_mock.assert_called_with(
+            s=s)
+
+        s.aggs.bucket.assert_called_with(
+            'contributors',
+            'terms',
+            field='author_name',
+            order={'total_contribs': 'desc'},
+            size=10000)
+        s.aggs.bucket().metric.assert_called_with(
+            'total_contribs',
+            'cardinality',
+            field='painless_unique_id',
+            precision_threshold=40000)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test (not) ignoring bots and both dates
+        #
+
+        # Reset the `ignore_bots_mock` call number
+        ignore_bots_mock.reset_mock()
+
+        result = esc.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_bots=False)
+
+        create_search_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date)
+        ignore_bots_mock.assert_not_called()
+
+        s.aggs.bucket.assert_called_with(
+            'contributors',
+            'terms',
+            field='author_name',
+            order={'total_contribs': 'desc'},
+            size=10000)
+        s.aggs.bucket().metric.assert_called_with(
+            'total_contribs',
+            'cardinality',
+            field='hash',
+            precision_threshold=40000)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test (not) ignoring bots and start date only
+        #
+
+        # Reset the `ignore_bots_mock` call number
+        ignore_bots_mock.reset_mock()
+
+        result = esc.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            exclude_bots=False)
+
+        create_search_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=None)
+        ignore_bots_mock.assert_not_called()
+
+        s.aggs.bucket.assert_called_with(
+            'contributors',
+            'terms',
+            field='author_name',
+            order={'total_contribs': 'desc'},
+            size=10000)
         s.aggs.bucket().metric.assert_called_with(
             'total_contribs',
             'cardinality',
