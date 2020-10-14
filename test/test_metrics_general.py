@@ -302,5 +302,90 @@ class TestMetricsGeneral(TestCase):
         assert_frame_equal(result, expected_df)
 
 
+    @mock.patch('broomstick.metrics.general.com.contributions_count_by_contributor')
+    def test_contributions_count_by_contributor(
+            self,
+            contributions_count_by_contributor_mock):
+        """Test count contributions by contributor method.
+        """
+
+        expected_data = {
+            'contributor': ['Anne', 'Bob', 'Carl'],
+            'contributions': [179, 125, 30]
+        }
+
+        expected_df = pandas.DataFrame(
+            expected_data,
+            columns=['contributor', 'contributions'])
+
+        # Test with start and end dates
+        #
+
+        contributions_count_by_contributor_mock.return_value = expected_df
+
+        start_date = '2018-01-01'
+        end_date = '2020-01-01'
+
+        result = gm.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date)
+
+        contributions_count_by_contributor_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_bots=True)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test with start date only
+        #
+
+        result = gm.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date)
+
+        contributions_count_by_contributor_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=None,
+            exclude_bots=True)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test with start date and exclude bots
+        #
+
+        result = gm.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            exclude_bots=False)
+
+        contributions_count_by_contributor_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=None,
+            exclude_bots=False)
+
+        assert_frame_equal(result, expected_df)
+
+        # Test with both dates and exclude bots
+        #
+
+        result = gm.contributions_count_by_contributor(
+            DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_bots=False)
+
+        contributions_count_by_contributor_mock.assert_called_with(
+            data_source=DataSource.GIT,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_bots=False)
+
+        assert_frame_equal(result, expected_df)
+
 if __name__ == '__main__':
     unittest.main()
