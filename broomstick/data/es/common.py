@@ -154,6 +154,16 @@ def exclude_org(s, org_name):
     return s.exclude('term', author_org_name=org_name)
 
 
+def ignore_bots(s):
+    """Adds a filter for excluding bots.
+
+    :param s: the search we want to update.
+
+    :returns: the search with the exclusion filter set.
+    """
+    return s.exclude('bool', author_bot=True)
+
+
 def filter_org(s, org_name):
     """Adds a filter for retrieving only authors affiliated to the given org.
 
@@ -274,3 +284,59 @@ def contributions_count_by_org(data_source,
         inplace=True)
 
     return contribs_by_org_df
+
+
+def contributions_count_by_contributor(data_source,
+                                       start_date,
+                                       end_date=None,
+                                       exclude_bots=True):
+    """ Gets number of contributions of each contributor.
+
+    :param data_source: `broomstick.core.DataSource`
+    :param start_date: date from which we want to start counting contributions
+        (exclusive).
+    :param end_date: date until we want to counts contributions to (inclusive).
+        `None` by default, means count everything from `start_date`.
+    :param exclude_bots: whether or not to exclude contributions sent by
+        bots.
+    :returns: a Pandas DataFrame with two columns:
+        - Contributor name.
+        - The number of contributions sent by that contributor to the
+          specified data source during the given dates.
+    """
+
+    s = create_search(data_source=data_source,
+                      start_date=start_date,
+                      end_date=end_date)
+
+    if exclude_bots:
+        s = ignore_bots(s=s)
+
+    s.aggs.bucket('contributors',
+                  'terms',
+                  field='author_name',
+                  order={'total_contribs': 'desc'},
+                  size=10000)\
+        .metric('total_contribs',
+                'cardinality',
+                field=DS_ID_FIELD[data_source],
+                precision_threshold=40000)
+    s = s[0:0]
+
+    buckets = s.execute().to_dict()['aggregations']['contributors']['buckets']
+
+    contribs_by_contributor_df = pandas.json_normalize(buckets)
+
+    # remove `doc_count` column
+    contribs_by_contributor_df = contribs_by_contributor_df.drop(['doc_count'], axis=1)
+
+    contribs_by_contributor_df.rename(
+        columns={
+            'key': 'contributor',
+            'total_contribs.value': 'contributions'},
+        inplace=True)
+
+    return contribs_by_contributor_df
+
+
+

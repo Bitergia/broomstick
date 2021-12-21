@@ -110,3 +110,26 @@ def contributions_count_by_org(data_source,
         start_date=start_date,
         end_date=end_date,
         exclude_unknown=exclude_unknown)
+
+
+def contributions_count_by_contributor(data_source,
+                                       start_date,
+                                       end_date=None,
+                                       exclude_bots=True):
+    """ Gets number of contributions of each contributor.
+
+    :param data_source: `broomstick.core.DataSource`
+    :param start_date: date from which we want to start counting contributions
+        (exclusive).
+    :param end_date: date until we want to counts contributions to (inclusive).
+        `None` by default, means count everything from `start_date`.
+    :param exclude_bots: whether or not to exclude contributions by bots
+    :returns: the number of contributions sent to the specified data source.
+    """
+
+    return com.contributions_count_by_contributor(
+        data_source=data_source,
+        start_date=start_date,
+        end_date=end_date,
+        exclude_bots=exclude_bots)
+
