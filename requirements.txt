@@ -7,7 +7,7 @@ jupyter==1.0.0
 jupyter-client==5.3.4
 jupyter-console==6.1.0
 jupyter-core==4.6.2
-notebook==6.4.1
+notebook==6.4.12
 pandas==1.0.1
 plotly==4.5.0
 urllib3==1.26.5
