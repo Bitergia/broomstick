@@ -1,4 +1,4 @@
-certifi==2019.3.9
+certifi==2022.12.7
 cufflinks==0.17.3
 elasticsearch==6.3.1
 elasticsearch-dsl==6.3.1
